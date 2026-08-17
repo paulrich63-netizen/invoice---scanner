@@ -30,7 +30,12 @@ jobs:
       - name: Generate missing platform files
         run: |
           flutter create . --project-name invoice_scanner --org com.invoice.scanner --platforms=android
-          echo "Platform files generated"
+
+      - name: Disable R8 minification (fix ML Kit missing classes)
+        run: |
+          sed -i 's/minifyEnabled true/minifyEnabled false/' android/app/build.gradle || true
+          sed -i 's/minifyEnabled true/minifyEnabled false/' android/app/build.gradle.kts || true
+          echo "Minification disabled"
 
       - name: Get dependencies
         run: flutter pub get
