@@ -28,20 +28,29 @@ jobs:
           cache: true
 
       - name: Generate missing platform files
-        run: |
-          flutter create . --project-name invoice_scanner --org com.invoice.scanner --platforms=android
+        run: flutter create . --project-name invoice_scanner --org com.invoice.scanner --platforms=android
 
-      - name: Disable R8 minification (fix ML Kit missing classes)
+      - name: Force disable code shrinking (fix ML Kit R8 error)
         run: |
-          sed -i 's/minifyEnabled true/minifyEnabled false/' android/app/build.gradle || true
-          sed -i 's/minifyEnabled true/minifyEnabled false/' android/app/build.gradle.kts || true
-          echo "Minification disabled"
+          # Handle both Groovy and Kotlin DSL build files
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
+            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle
+            # Also force it in the release block if present
+            sed -i '/release {/,/}/ s/minifyEnabled.*/minifyEnabled false/' android/app/build.gradle || true
+          fi
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
+            sed -i 's/minifyEnabled = true/minifyEnabled = false/g' android/app/build.gradle.kts
+          fi
+          echo "=== Checking build.gradle content ==="
+          grep -n -i "minify\|shrink" android/app/build.gradle* || echo "No minify lines found"
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
