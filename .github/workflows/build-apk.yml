@@ -30,27 +30,40 @@ jobs:
       - name: Generate missing platform files
         run: flutter create . --project-name invoice_scanner --org com.invoice.scanner --platforms=android
 
-      - name: Force disable code shrinking (fix ML Kit R8 error)
+      - name: Fix Android build settings (SDK 35 + disable R8)
         run: |
-          # Handle both Groovy and Kotlin DSL build files
-          if [ -f android/app/build.gradle ]; then
-            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
-            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle
-            # Also force it in the release block if present
-            sed -i '/release {/,/}/ s/minifyEnabled.*/minifyEnabled false/' android/app/build.gradle || true
-          fi
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
-            sed -i 's/minifyEnabled = true/minifyEnabled = false/g' android/app/build.gradle.kts
-          fi
-          echo "=== Checking build.gradle content ==="
-          grep -n -i "minify\|shrink" android/app/build.gradle* || echo "No minify lines found"
+          # Raise compileSdk and targetSdk to 35
+          sed -i 's/compileSdk = 34/compileSdk = 35/' android/app/build.gradle || true
+          sed -i 's/compileSdkVersion 34/compileSdk 35/' android/app/build.gradle || true
+          sed -i 's/targetSdk = 34/targetSdk = 35/' android/app/build.gradle || true
+          sed -i 's/targetSdkVersion 34/targetSdk 35/' android/app/build.gradle || true
+
+          # Force disable minify and shrink in release
+          python3 - <<'EOF'
+          import re, pathlib
+          path = pathlib.Path("android/app/build.gradle")
+          if path.exists():
+              text = path.read_text()
+              # Disable minifyEnabled
+              text = re.sub(r'minifyEnabled\s+true', 'minifyEnabled false', text)
+              text = re.sub(r'isMinifyEnabled\s*=\s*true', 'isMinifyEnabled = false', text)
+              # Disable shrinkResources
+              text = re.sub(r'shrinkResources\s+true', 'shrinkResources false', text)
+              text = re.sub(r'isShrinkResources\s*=\s*true', 'isShrinkResources = false', text)
+              path.write_text(text)
+              print("Updated build.gradle")
+          else:
+              print("build.gradle not found")
+          EOF
+
+          echo "=== Current minify / shrink settings ==="
+          grep -n -i "minify\|shrink\|compileSdk\|targetSdk" android/app/build.gradle || true
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
