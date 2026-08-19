@@ -5,11 +5,12 @@ import '../models/invoice_entry.dart';
 class EditEntryScreen extends StatefulWidget {
   final InvoiceEntry? existing;
   final String? initialDate;
-  final String? initialDueDate;
-  final String? initialInvoiceNumber;
   final String? initialSupplier;
+  final String? initialNet;
+  final String? initialVat20;
+  final String? initialVat5;
+  final String? initialZeroRated;
   final String? initialTotal;
-  final String? initialTax;
   final String? initialCurrency;
   final String? initialDescription;
   final String? initialImagePath;
@@ -20,11 +21,12 @@ class EditEntryScreen extends StatefulWidget {
     super.key,
     this.existing,
     this.initialDate,
-    this.initialDueDate,
-    this.initialInvoiceNumber,
     this.initialSupplier,
+    this.initialNet,
+    this.initialVat20,
+    this.initialVat5,
+    this.initialZeroRated,
     this.initialTotal,
-    this.initialTax,
     this.initialCurrency,
     this.initialDescription,
     this.initialImagePath,
@@ -38,29 +40,31 @@ class EditEntryScreen extends StatefulWidget {
 
 class _EditEntryScreenState extends State<EditEntryScreen> {
   late final TextEditingController _dateCtrl;
-  late final TextEditingController _dueDateCtrl;
-  late final TextEditingController _invNumCtrl;
   late final TextEditingController _supplierCtrl;
+  late final TextEditingController _netCtrl;
+  late final TextEditingController _vat20Ctrl;
+  late final TextEditingController _vat5Ctrl;
+  late final TextEditingController _zeroCtrl;
   late final TextEditingController _totalCtrl;
-  late final TextEditingController _taxCtrl;
   late final TextEditingController _currencyCtrl;
   late final TextEditingController _descCtrl;
   bool _showRaw = false;
   late final String _imagePath;
 
-  static const _currencies = ['', 'EUR', 'USD', 'GBP', 'CHF', 'AUD', 'CAD', 'JPY'];
+  static const _currencies = ['GBP', 'EUR', 'USD', 'CHF', 'AUD', 'CAD'];
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
     _dateCtrl = TextEditingController(text: e?.date ?? widget.initialDate ?? '');
-    _dueDateCtrl = TextEditingController(text: e?.dueDate ?? widget.initialDueDate ?? '');
-    _invNumCtrl = TextEditingController(text: e?.invoiceNumber ?? widget.initialInvoiceNumber ?? '');
     _supplierCtrl = TextEditingController(text: e?.supplier ?? widget.initialSupplier ?? '');
+    _netCtrl = TextEditingController(text: e?.net ?? widget.initialNet ?? '');
+    _vat20Ctrl = TextEditingController(text: e?.vat20 ?? widget.initialVat20 ?? '');
+    _vat5Ctrl = TextEditingController(text: e?.vat5 ?? widget.initialVat5 ?? '');
+    _zeroCtrl = TextEditingController(text: e?.zeroRated ?? widget.initialZeroRated ?? '');
     _totalCtrl = TextEditingController(text: e?.total ?? widget.initialTotal ?? '');
-    _taxCtrl = TextEditingController(text: e?.tax ?? widget.initialTax ?? '');
-    _currencyCtrl = TextEditingController(text: e?.currency ?? widget.initialCurrency ?? '');
+    _currencyCtrl = TextEditingController(text: e?.currency ?? widget.initialCurrency ?? 'GBP');
     _descCtrl = TextEditingController(text: e?.description ?? widget.initialDescription ?? '');
     _imagePath = e?.imagePath ?? widget.initialImagePath ?? '';
   }
@@ -68,11 +72,12 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
   @override
   void dispose() {
     _dateCtrl.dispose();
-    _dueDateCtrl.dispose();
-    _invNumCtrl.dispose();
     _supplierCtrl.dispose();
+    _netCtrl.dispose();
+    _vat20Ctrl.dispose();
+    _vat5Ctrl.dispose();
+    _zeroCtrl.dispose();
     _totalCtrl.dispose();
-    _taxCtrl.dispose();
     _currencyCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
@@ -83,11 +88,12 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
     final entry = InvoiceEntry(
       id: widget.existing?.id ?? widget.forcedId ?? DateTime.now().millisecondsSinceEpoch.toString(),
       date: _dateCtrl.text.trim(),
-      dueDate: _dueDateCtrl.text.trim(),
-      invoiceNumber: _invNumCtrl.text.trim(),
       supplier: _supplierCtrl.text.trim(),
+      net: _netCtrl.text.trim(),
+      vat20: _vat20Ctrl.text.trim(),
+      vat5: _vat5Ctrl.text.trim(),
+      zeroRated: _zeroCtrl.text.trim(),
       total: _totalCtrl.text.trim(),
-      tax: _taxCtrl.text.trim(),
       currency: _currencyCtrl.text.trim().toUpperCase(),
       description: _descCtrl.text.trim(),
       createdAt: widget.existing?.createdAt ?? now,
@@ -138,7 +144,6 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          // Attached photo
           if (hasImg) ...[
             GestureDetector(
               onTap: _openFullImage,
@@ -190,85 +195,56 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
           Text(
             isEdit
                 ? 'Edit the fields below and save.'
-                : 'OCR results are pre-filled. Please correct any mistakes before saving.',
+                : 'Please check and correct the extracted values.',
             style: TextStyle(color: cs.onSurfaceVariant),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           TextField(
-            controller: _invNumCtrl,
+            controller: _dateCtrl,
             decoration: const InputDecoration(
-              labelText: 'Invoice number',
-              hintText: 'e.g. INV-2024-001',
-              prefixIcon: Icon(Icons.tag),
+              labelText: 'Invoice Date',
+              hintText: 'DD/MM/YYYY',
+              prefixIcon: Icon(Icons.calendar_today, size: 20),
             ),
             textInputAction: TextInputAction.next,
-            textCapitalization: TextCapitalization.characters,
           ),
-          const SizedBox(height: 14),
-
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _dateCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Invoice date',
-                    hintText: 'YYYY-MM-DD',
-                    prefixIcon: Icon(Icons.calendar_today, size: 20),
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _dueDateCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Due date',
-                    hintText: 'optional',
-                    prefixIcon: Icon(Icons.event, size: 20),
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           TextField(
             controller: _supplierCtrl,
             decoration: const InputDecoration(
-              labelText: 'Supplier / Vendor',
-              hintText: 'Company name',
+              labelText: 'Supplier',
               prefixIcon: Icon(Icons.storefront_outlined),
             ),
             textInputAction: TextInputAction.next,
             textCapitalization: TextCapitalization.words,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+
+          // Amounts section
+          Text('Amounts', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
 
           Row(
             children: [
               Expanded(
-                flex: 2,
                 child: TextField(
-                  controller: _totalCtrl,
+                  controller: _netCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Total',
-                    hintText: '123.45',
-                    prefixIcon: Icon(Icons.payments_outlined, size: 20),
+                    labelText: 'Net / VATable',
+                    hintText: '0.00',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   textInputAction: TextInputAction.next,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextField(
-                  controller: _taxCtrl,
+                  controller: _totalCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Tax / VAT',
+                    labelText: 'Total',
                     hintText: '0.00',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -277,35 +253,72 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _vat20Ctrl,
+                  decoration: const InputDecoration(
+                    labelText: 'VAT 20%',
+                    hintText: '0.00',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _vat5Ctrl,
+                  decoration: const InputDecoration(
+                    labelText: 'VAT 5%',
+                    hintText: '0.00',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          TextField(
+            controller: _zeroCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Zero Rated / Exempt',
+              hintText: '0.00',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
 
           DropdownButtonFormField<String>(
-            value: _currencies.contains(_currencyCtrl.text) ? _currencyCtrl.text : '',
+            value: _currencies.contains(_currencyCtrl.text) ? _currencyCtrl.text : 'GBP',
             decoration: const InputDecoration(
               labelText: 'Currency',
               prefixIcon: Icon(Icons.currency_exchange),
             ),
             items: _currencies
-                .map((c) => DropdownMenuItem(
-                      value: c,
-                      child: Text(c.isEmpty ? '— None —' : c),
-                    ))
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                 .toList(),
             onChanged: (v) {
               if (v != null) setState(() => _currencyCtrl.text = v);
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           TextField(
             controller: _descCtrl,
             decoration: const InputDecoration(
-              labelText: 'Description / Notes',
-              hintText: 'What the invoice is for',
+              labelText: 'Description (brief)',
+              hintText: 'Short description of work / goods',
               prefixIcon: Icon(Icons.notes),
               alignLabelWithHint: true,
             ),
-            maxLines: 4,
+            maxLines: 2,
             textInputAction: TextInputAction.done,
           ),
           const SizedBox(height: 28),

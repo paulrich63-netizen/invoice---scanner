@@ -1,25 +1,27 @@
 class InvoiceEntry {
   final String id;
-  final String date;
-  final String dueDate;
-  final String invoiceNumber;
+  final String date;          // Invoice date only
   final String supplier;
+  final String net;           // Net / VATable amount
+  final String vat20;         // VAT at 20%
+  final String vat5;          // VAT at 5%
+  final String zeroRated;     // Zero-rated / exempt
   final String total;
-  final String tax;
   final String currency;
-  final String description;
+  final String description;   // Brief description
   final String createdAt;
-  final String imagePath; // absolute path to the saved invoice photo
+  final String imagePath;
 
   InvoiceEntry({
     required this.id,
     required this.date,
-    this.dueDate = '',
-    this.invoiceNumber = '',
     required this.supplier,
+    this.net = '',
+    this.vat20 = '',
+    this.vat5 = '',
+    this.zeroRated = '',
     required this.total,
-    this.tax = '',
-    this.currency = '',
+    this.currency = 'GBP',
     required this.description,
     required this.createdAt,
     this.imagePath = '',
@@ -28,11 +30,12 @@ class InvoiceEntry {
   Map<String, dynamic> toJson() => {
         'id': id,
         'date': date,
-        'dueDate': dueDate,
-        'invoiceNumber': invoiceNumber,
         'supplier': supplier,
+        'net': net,
+        'vat20': vat20,
+        'vat5': vat5,
+        'zeroRated': zeroRated,
         'total': total,
-        'tax': tax,
         'currency': currency,
         'description': description,
         'createdAt': createdAt,
@@ -42,12 +45,13 @@ class InvoiceEntry {
   factory InvoiceEntry.fromJson(Map<String, dynamic> json) => InvoiceEntry(
         id: json['id'] as String,
         date: json['date'] as String? ?? '',
-        dueDate: json['dueDate'] as String? ?? '',
-        invoiceNumber: json['invoiceNumber'] as String? ?? '',
         supplier: json['supplier'] as String? ?? '',
+        net: json['net'] as String? ?? '',
+        vat20: json['vat20'] as String? ?? '',
+        vat5: json['vat5'] as String? ?? '',
+        zeroRated: json['zeroRated'] as String? ?? '',
         total: json['total'] as String? ?? '',
-        tax: json['tax'] as String? ?? '',
-        currency: json['currency'] as String? ?? '',
+        currency: json['currency'] as String? ?? 'GBP',
         description: json['description'] as String? ?? '',
         createdAt: json['createdAt'] as String? ?? '',
         imagePath: json['imagePath'] as String? ?? '',
@@ -55,11 +59,12 @@ class InvoiceEntry {
 
   InvoiceEntry copyWith({
     String? date,
-    String? dueDate,
-    String? invoiceNumber,
     String? supplier,
+    String? net,
+    String? vat20,
+    String? vat5,
+    String? zeroRated,
     String? total,
-    String? tax,
     String? currency,
     String? description,
     String? imagePath,
@@ -67,11 +72,12 @@ class InvoiceEntry {
     return InvoiceEntry(
       id: id,
       date: date ?? this.date,
-      dueDate: dueDate ?? this.dueDate,
-      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       supplier: supplier ?? this.supplier,
+      net: net ?? this.net,
+      vat20: vat20 ?? this.vat20,
+      vat5: vat5 ?? this.vat5,
+      zeroRated: zeroRated ?? this.zeroRated,
       total: total ?? this.total,
-      tax: tax ?? this.tax,
       currency: currency ?? this.currency,
       description: description ?? this.description,
       createdAt: createdAt,
@@ -79,11 +85,15 @@ class InvoiceEntry {
     );
   }
 
+  bool get hasImage => imagePath.isNotEmpty;
+
   String get displayTotal {
     if (total.isEmpty) return '—';
-    final c = currency.isNotEmpty ? ' $currency' : '';
-    return '$total$c';
+    return currency.isNotEmpty ? '$total $currency' : total;
   }
 
-  bool get hasImage => imagePath.isNotEmpty;
+  String get displayNet {
+    if (net.isEmpty) return '—';
+    return currency.isNotEmpty ? '$net $currency' : net;
+  }
 }

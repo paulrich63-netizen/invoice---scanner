@@ -71,7 +71,6 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         _filtered = _entries.where((e) {
           return e.supplier.toLowerCase().contains(q) ||
-              e.invoiceNumber.toLowerCase().contains(q) ||
               e.date.contains(q) ||
               e.description.toLowerCase().contains(q) ||
               e.total.contains(q);
@@ -114,7 +113,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
 
-      // Generate a stable ID early so we can save the image with it
       final entryId = DateTime.now().millisecondsSinceEpoch.toString();
       final savedImagePath = await _images.saveInvoiceImage(sourceFile, entryId);
 
@@ -122,11 +120,12 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(
           builder: (_) => EditEntryScreen(
             initialDate: result.date,
-            initialDueDate: result.dueDate,
-            initialInvoiceNumber: result.invoiceNumber,
             initialSupplier: result.supplier,
+            initialNet: result.net,
+            initialVat20: result.vat20,
+            initialVat5: result.vat5,
+            initialZeroRated: result.zeroRated,
             initialTotal: result.total,
-            initialTax: result.tax,
             initialCurrency: result.currency,
             initialDescription: result.description,
             initialImagePath: savedImagePath,
@@ -142,13 +141,12 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Invoice saved with photo'),
+              content: Text('Invoice saved'),
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
       } else {
-        // User cancelled – clean up the copied image
         await _images.deleteImage(savedImagePath);
       }
     } catch (e) {
@@ -162,13 +160,88 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _export(String format) async {
+  Future<void> _showPreviewAndExport(String format) async {
     if (_entries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No invoices to export')),
       );
       return;
     }
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (_, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Preview (${_entries.length} invoices)',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: Text('Export ${format.toUpperCase()}'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _entries.length,
+                    itemBuilder: (_, i) {
+                      final e = _entries[i];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(e.supplier.isEmpty ? '(No supplier)' : e.supplier,
+                                  style: const TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text('${e.date}  •  Total: ${e.displayTotal}'),
+                              if (e.net.isNotEmpty)
+                                Text('Net: ${e.net}  |  VAT20: ${e.vat20}  |  VAT5: ${e.vat5}  |  Zero: ${e.zeroRated}',
+                                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              if (e.description.isNotEmpty)
+                                Text(e.description,
+                                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
     try {
       late final File file;
       if (format == 'xlsx') {
@@ -204,20 +277,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.table_chart_outlined),
-              title: const Text('CSV (Excel-compatible)'),
-              subtitle: const Text('Works with Google Sheets, Excel, Numbers…'),
+              title: const Text('CSV (Excel compatible)'),
+              subtitle: const Text('Preview first, then share'),
               onTap: () {
                 Navigator.pop(ctx);
-                _export('csv');
+                _showPreviewAndExport('csv');
               },
             ),
             ListTile(
               leading: const Icon(Icons.grid_on_rounded),
               title: const Text('Excel (.xlsx)'),
-              subtitle: const Text('Native Microsoft Excel workbook'),
+              subtitle: const Text('Preview first, then share'),
               onTap: () {
                 Navigator.pop(ctx);
-                _export('xlsx');
+                _showPreviewAndExport('xlsx');
               },
             ),
             const SizedBox(height: 8),
@@ -234,8 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Delete invoice?'),
         content: Text(
           '${entry.supplier.isEmpty ? "(No supplier)" : entry.supplier}\n'
-          '${entry.date.isEmpty ? "—" : entry.date}  •  ${entry.displayTotal}'
-          '${entry.hasImage ? "\n\n(Attached photo will also be deleted)" : ""}',
+          '${entry.date.isEmpty ? "—" : entry.date}  •  ${entry.displayTotal}',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -365,7 +437,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TextField(
                     controller: _searchCtrl,
                     decoration: InputDecoration(
-                      hintText: 'Search supplier, invoice #, date…',
+                      hintText: 'Search supplier, date, description…',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchCtrl.text.isNotEmpty
                           ? IconButton(
@@ -457,7 +529,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Icon(Icons.camera_alt, color: cs.onPrimaryContainer),
                           ),
                           title: const Text('Take photo'),
-                          subtitle: const Text('Use the camera'),
                           onTap: () {
                             Navigator.pop(ctx);
                             _pickImage(ImageSource.camera);
@@ -469,7 +540,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Icon(Icons.photo_library, color: cs.onSecondaryContainer),
                           ),
                           title: const Text('Choose from gallery'),
-                          subtitle: const Text('Pick an existing image'),
                           onTap: () {
                             Navigator.pop(ctx);
                             _pickImage(ImageSource.gallery);
@@ -509,7 +579,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               hasSearch
                   ? 'Try a different search term'
-                  : 'Tap the button below to photograph an invoice.\nPhotos are saved with the extracted data.',
+                  : 'Tap the button below to photograph an invoice.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
@@ -546,7 +616,6 @@ class _InvoiceCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail or placeholder
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: hasImg
@@ -571,49 +640,29 @@ class _InvoiceCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (entry.invoiceNumber.isNotEmpty) ...[
-                          Text(
-                            entry.invoiceNumber,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Text('  ·  ', style: TextStyle(color: cs.outline)),
-                        ],
-                        Text(
-                          entry.date.isEmpty ? '—' : entry.date,
-                          style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
-                        ),
-                      ],
+                    Text(
+                      entry.date.isEmpty ? '—' : entry.date,
+                      style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
                     ),
                     if (entry.description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         entry.description,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
                       ),
                     ],
                     const SizedBox(height: 6),
                     Wrap(
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 4,
                       children: [
                         _chip(context, entry.displayTotal, cs.primaryContainer, cs.onPrimaryContainer, bold: true),
-                        if (entry.tax.isNotEmpty)
-                          _chip(
-                            context,
-                            'Tax ${entry.tax}${entry.currency.isNotEmpty ? ' ${entry.currency}' : ''}',
-                            cs.secondaryContainer,
-                            cs.onSecondaryContainer,
-                          ),
-                        if (entry.dueDate.isNotEmpty)
-                          _chip(context, 'Due ${entry.dueDate}', cs.tertiaryContainer, cs.onTertiaryContainer),
+                        if (entry.net.isNotEmpty)
+                          _chip(context, 'Net ${entry.net}', cs.secondaryContainer, cs.onSecondaryContainer),
+                        if (entry.vat20.isNotEmpty)
+                          _chip(context, 'VAT20 ${entry.vat20}', cs.tertiaryContainer, cs.onTertiaryContainer),
                       ],
                     ),
                   ],

@@ -11,21 +11,21 @@ class CsvService {
     final file = File(p.join(dir.path, 'invoices_$timestamp.csv'));
 
     final buffer = StringBuffer();
+    // Clean columns as requested
     buffer.writeln(
-        'Date,DueDate,InvoiceNumber,Supplier,Total,Tax,Currency,Description,CreatedAt,HasImage');
+        'Date,Supplier,Net,VAT20,VAT5,ZeroRated,Total,Currency,Description');
 
     for (final e in entries) {
       buffer.writeln(
         '"${_escape(e.date)}",'
-        '"${_escape(e.dueDate)}",'
-        '"${_escape(e.invoiceNumber)}",'
         '"${_escape(e.supplier)}",'
+        '"${_escape(e.net)}",'
+        '"${_escape(e.vat20)}",'
+        '"${_escape(e.vat5)}",'
+        '"${_escape(e.zeroRated)}",'
         '"${_escape(e.total)}",'
-        '"${_escape(e.tax)}",'
         '"${_escape(e.currency)}",'
-        '"${_escape(e.description)}",'
-        '"${_escape(e.createdAt)}",'
-        '"${e.hasImage ? 'Yes' : 'No'}"',
+        '"${_escape(e.description)}"',
       );
     }
 
